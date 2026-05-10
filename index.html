@@ -226,6 +226,27 @@ h2{
   }
 
 }
+.delete-button{
+
+  border:none;
+
+  background:#ef4444;
+
+  color:white;
+
+  padding:8px 14px;
+
+  border-radius:8px;
+
+  cursor:pointer;
+
+  font-weight:bold;
+
+}
+
+.delete-button:hover{
+  background:#dc2626;
+}
 
 </style>
 <!-- CSSここまで -->
@@ -645,14 +666,37 @@ function renderSummary(){
 
     summary.innerHTML += `
 
-      <div class="summary-row">
-        <div>${bet.type}：${bet.label}</div>
-        <div>${bet.amount}pt × ${bet.odds}</div>
-      </div>
+  <div class="summary-row">
 
-    `;
+    <div>
+      ${bet.type}：${bet.label}
+      <br>
+      ${bet.amount}pt × ${bet.odds}
+    </div>
+
+    <button
+      class="delete-button"
+      onclick="deleteBet('${bet.type}:${bet.key}')"
+    >
+      削除
+    </button>
+
+  </div>
+
+`;
 
   });
+
+}
+function deleteBet(betKey){
+
+  delete bets[betKey];
+
+  renderSummary();
+
+  renderBets();
+
+  autoCalculateAllFilledRounds();
 
 }
 
