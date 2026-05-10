@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>トランプ競馬</title>
+
+<style>
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+body{
+  font-family:"Helvetica Neue",sans-serif;
+  background:#f3f4f6;
+  color:#111827;
+  padding:16px;
+}
+
+.container{
+  max-width:1100px;
+  margin:auto;
+}
+
+.card{
+  background:white;
+  border-radius:16px;
+  padding:20px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.08);
+  margin-bottom:20px;
+}
+
+h1{
+  font-size:26px;
+  margin-bottom:16px;
+}
+
+h2{
+  font-size:20px;
+  margin-bottom:14px;
+}
+
+.tabs{
+  display:flex;
+  gap:8px;
+  margin-bottom:16px;
+  overflow-x:auto;
+}
+
+.tab{
+  border:none;
+  padding:10px 16px;
+  border-radius:10px;
+  background:#e5e7eb;
+  font-weight:bold;
+  cursor:pointer;
+  white-space:nowrap;
+}
+
+.tab.active{
+  background:#2563eb;
+  color:white;
+}
+
+.bet-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:12px;
+}
+
+.bet-item{
+  border:1px solid #d1d5db;
+  border-radius:12px;
+  padding:12px;
+}
+
+.bet-top{
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:10px;
+  font-weight:bold;
+}
+
+.bet-item input,
+.result-inputs input{
+  width:100%;
+  padding:10px;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  font-size:16px;
+}
+
+.summary-row{
+  display:flex;
+  justify-content:space-between;
+  padding:10px 0;
+  border-bottom:1px solid #e5e7eb;
+}
+
+.summary-row:last-child{
+  border-bottom:none;
+}
+
+.result-inputs{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-bottom:16px;
+}
+
+.result-button{
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:12px;
+  background:#16a34a;
+  color:white;
+  font-size:18px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.result-box{
+  margin-top:16px;
+  background:#f9fafb;
+  border-radius:12px;
+  padding:16px;
+}
+
+.win{
+  color:#2563eb;
+  font-weight:bold;
+}
+
+.lose{
+  color:#dc2626;
+  font-weight:bold;
+}
+
+.profit{
+  font-size:22px;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+@media(max-width:600px){
+  h1{
+    font-size:22px;
+  }
+
+  .result-inputs{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+    <h1>🏇 トランプ競馬</h1>
+
+    <div class="tabs">
+      <button class="tab active" onclick="changeMode('trifecta')">3連単</button>
+      <button class="tab" onclick="changeMode('trio')">3連複</button>
+      <button class="tab" onclick="changeMode('win')">単勝</button>
+    </div>
+
+    <div class="bet-grid" id="betGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2>現在のベット</h2>
+    <div id="betSummary"></div>
+    <h2 style="margin-top:16px;">合計ベット：<span id="totalBet">0</span> pt</h2>
+  </div>
+
+  <div class="card">
+    <h2>結果入力</h2>
+
+    <div class="result-inputs">
+      <input id="result1" placeholder="1枚目 例：4">
+      <input id="result2" placeholder="2枚目 例：3">
+      <input id="result3" placeholder="3枚目 例：Joker">
+    </div>
+
+    <button class="result-button" onclick="calculateResult()">
+      結果を計算する
+    </button>
+
+    <div class="result-box" id="resultBox">
+      結果を入力してください。
+    </div>
+  </div>
+
+</div>
+
+<script>
+const cards = ["Joker","4","4","4","4","3","3","3","2","2"];
+
+let currentMode = "trifecta";
+let bets = {};
+
+const trifectaOdds = {
+  "Joker-4-4":55,"Joker-4-3":55,"Joker-4-2":80,
+  "Joker-3-4":55,"Joker-3-3":110,"Joker-3-2":110,
+  "Joker-2-4":80,"Joker-2-3":110,"Joker-2-2":320,
+
+  "4-Joker-4":55,"4-Joker-3":55,"4-Joker-2":80,
+  "4-4-Joker":55,"4-4-4":25,"4-4-3":20,"4-4-2":25,
+  "4-3-Joker":55,"4-3-4":20,"4-3-3":25,"4-3-2":25,
+  "4-2-Joker":80,"4-2-4":25,"4-2-3":25,"4-2-2":80,
+
+  "3-Joker-4":55,"3-Joker-3":110,"3-Joker-2":110,
+  "3-4-Joker":55,"3-4-4":20,"3-4-3":25,"3-4-2":25,
+  "3-3-Joker":110,"3-3-4":25,"3-3-3":110,"3-3-2":55,
+  "3-2-Joker":110,"3-2-4":25,"3-2-3":55,"3-2-2":110,
+
+  "2-Joker-4":80,"2-Joker-3":110,"2-Joker-2":320,
+  "2-4-Joker":80,"2-4-4":25,"2-4-3":25,"2-4-2":80,
+  "2-3-Joker":110,"2-3-4":25,"2-3-3":55,"2-3-2":110,
+  "2-2-Joker":320,"2-2-4":80,"2-2-3":110
+};
+
+const winOdds = {
+  "Joker":10,
+  "4":2,
+  "3":3,
+  "2":5
+};
+
+function generateCombos(){
+  const combos = [];
+
+  for(let i=0;i<cards.length;i++){
+    for(let j=0;j<cards.length;j++){
+      for(let k=0;k<cards.length;k++){
+        if(i !== j && i !== k && j !== k){
+          const combo = [cards[i],cards[j],cards[k]];
+          const key = combo.join("-");
+          if(!combos.some(c => c.key === key)){
+            combos.push({key,combo});
+          }
+        }
+      }
+    }
+  }
+
+  return combos;
+}
+
+function getTrioKey(combo){
+  return [...combo].sort((a,b)=>{
+    const order = {"Joker":1,"4":2,"3":3,"2":4};
+    return order[a] - order[b];
+  }).join("-");
+}
+
+function getTrioOdds(combo){
+  const key = getTrioKey(combo);
+  const sample = {
+    "Joker-4-4":20,
+    "Joker-4-3":20,
+    "Joker-4-2":25,
+    "Joker-3-3":35,
+    "Joker-3-2":35,
+    "Joker-2-2":105,
+    "4-4-4":10,
+    "4-4-3":5,
+    "4-4-2":10,
+    "4-3-3":10,
+    "4-3-2":10,
+    "4-2-2":25,
+    "3-3-3":35,
+    "3-3-2":20,
+    "3-2-2":35,
+    "2-2-2":105
+  };
+
+  return sample[key] || 10;
+}
+
+function changeMode(mode){
+  currentMode = mode;
+
+  document.querySelectorAll(".tab").forEach(btn=>{
+    btn.classList.remove("active");
+  });
+
+  event.target.classList.add("active");
+  renderBets();
+}
+
+function renderBets(){
+  const grid = document.getElementById("betGrid");
+  grid.innerHTML = "";
+
+  let items = [];
+
+  if(currentMode === "win"){
+    items = Object.keys(winOdds).map(card=>({
+      key:card,
+      label:card,
+      odds:winOdds[card],
+      type:"単勝"
+    }));
+  }else{
+    const combos = generateCombos();
+
+    if(currentMode === "trifecta"){
+      items = combos.map(c=>({
+        key:c.key,
+        label:c.combo.join(" - "),
+        odds:trifectaOdds[c.key],
+        type:"3連単"
+      })).filter(item=>item.odds);
+    }
+
+    if(currentMode === "trio"){
+      const unique = {};
+
+      combos.forEach(c=>{
+        const key = getTrioKey(c.combo);
+        unique[key] = {
+          key,
+          label:key.replaceAll("-"," - "),
+          odds:getTrioOdds(c.combo),
+          type:"3連複"
+        };
+      });
+
+      items = Object.values(unique);
+    }
+  }
+
+  items.forEach(item=>{
+    const betKey = `${item.type}:${item.key}`;
+
+    const div = document.createElement("div");
+    div.className = "bet-item";
+
+    div.innerHTML = `
+      <div class="bet-top">
+        <div>${item.label}</div>
+        <div>オッズ：${item.odds}</div>
+      </div>
+
+      <input
+        type="number"
+        min="0"
+        placeholder="ベットpt"
+        value="${bets[betKey]?.amount || ""}"
+        oninput="setBet('${betKey}','${item.type}','${item.key}','${item.label}',${item.odds},this.value)"
+      >
+    `;
+
+    grid.appendChild(div);
+  });
+}
+
+function setBet(betKey,type,key,label,odds,value){
+  const amount = Number(value);
+
+  if(amount > 0){
+    bets[betKey] = {
+      type,
+      key,
+      label,
+      odds,
+      amount
+    };
+  }else{
+    delete bets[betKey];
+  }
+
+  renderSummary();
+}
+
+function renderSummary(){
+  const summary = document.getElementById("betSummary");
+  const totalBet = document.getElementById("totalBet");
+
+  summary.innerHTML = "";
+
+  const betList = Object.values(bets);
+  const total = betList.reduce((sum,b)=>sum + b.amount,0);
+
+  totalBet.textContent = total;
+
+  if(betList.length === 0){
+    summary.innerHTML = "まだベットがありません。";
+    return;
+  }
+
+  betList.forEach(bet=>{
+    summary.innerHTML += `
+      <div class="summary-row">
+        <div>${bet.type}：${bet.label}</div>
+        <div>${bet.amount}pt × ${bet.odds}</div>
+      </div>
+    `;
+  });
+}
+
+function normalizeCard(value){
+  const v = value.trim();
+
+  if(v.toLowerCase() === "joker"){
+    return "Joker";
+  }
+
+  return v;
+}
+
+function calculateResult(){
+  const r1 = normalizeCard(document.getElementById("result1").value);
+  const r2 = normalizeCard(document.getElementById("result2").value);
+  const r3 = normalizeCard(document.getElementById("result3").value);
+
+  if(!r1 || !r2 || !r3){
+    alert("3枚すべて入力してください");
+    return;
+  }
+
+  const result = [r1,r2,r3];
+  const resultKey = result.join("-");
+  const resultTrioKey = getTrioKey(result);
+  const firstCard = r1;
+
+  let payout = 0;
+  let html = `<h2>結果：${result.join(" - ")}</h2>`;
+
+  Object.values(bets).forEach(bet=>{
+    let hit = false;
+
+    if(bet.type === "単勝"){
+      hit = bet.key === firstCard;
+    }
+
+    if(bet.type === "3連単"){
+      hit = bet.key === resultKey;
+    }
+
+    if(bet.type === "3連複"){
+      hit = bet.key === resultTrioKey;
+    }
+
+    if(hit){
+      const winPoint = bet.amount * bet.odds;
+      payout += winPoint;
+
+      html += `
+        <div class="summary-row win">
+          <div>的中：${bet.type} ${bet.label}</div>
+          <div>+${winPoint}pt</div>
+        </div>
+      `;
+    }else{
+      html += `
+        <div class="summary-row lose">
+          <div>不的中：${bet.type} ${bet.label}</div>
+          <div>0pt</div>
+        </div>
+      `;
+    }
+  });
+
+  const totalBet = Object.values(bets).reduce((sum,b)=>sum + b.amount,0);
+  const profit = payout - totalBet;
+
+  html += `
+    <div class="profit">
+      払い戻し：${payout}pt
+    </div>
+
+    <div class="profit">
+      最終収支：${profit >= 0 ? "+" : ""}${profit}pt
+    </div>
+  `;
+
+  document.getElementById("resultBox").innerHTML = html;
+}
+
+renderBets();
+renderSummary();
+</script>
+
+</body>
+</html>
