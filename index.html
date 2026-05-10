@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>トランプ競馬</title>
 
+<!-- =========================
+  CSSここから
+  見た目・レイアウトの設定
+========================= -->
 <style>
+
 *{
   box-sizing:border-box;
   margin:0;
@@ -79,8 +84,14 @@ h2{
 .bet-top{
   display:flex;
   justify-content:space-between;
+  gap:10px;
   margin-bottom:10px;
   font-weight:bold;
+}
+
+.bet-input-row{
+  display:flex;
+  gap:8px;
 }
 
 .bet-item input,
@@ -92,9 +103,25 @@ h2{
   font-size:16px;
 }
 
+.bet-confirm-button{
+  min-width:70px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  padding:10px;
+}
+
+.bet-confirm-button:hover{
+  background:#1d4ed8;
+}
+
 .summary-row{
   display:flex;
   justify-content:space-between;
+  gap:10px;
   padding:10px 0;
   border-bottom:1px solid #e5e7eb;
 }
@@ -103,11 +130,32 @@ h2{
   border-bottom:none;
 }
 
+.result-round{
+  margin-bottom:16px;
+  padding:14px;
+  border:1px solid #e5e7eb;
+  border-radius:12px;
+  background:#f9fafb;
+}
+
+.result-round-title{
+  font-weight:bold;
+  margin-bottom:10px;
+}
+
 .result-inputs{
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:10px;
-  margin-bottom:16px;
+}
+
+.round-result{
+  margin-top:10px;
+  padding:10px;
+  border-radius:10px;
+  background:white;
+  border:1px solid #e5e7eb;
+  font-weight:bold;
 }
 
 .result-button{
@@ -140,12 +188,31 @@ h2{
 }
 
 .profit{
-  font-size:22px;
+  font-size:18px;
   font-weight:bold;
-  margin-top:10px;
+  margin-top:8px;
+}
+
+.total-result{
+  margin-top:20px;
+  padding:16px;
+  border-radius:12px;
+  background:#111827;
+  color:white;
+  font-size:20px;
+  font-weight:bold;
+}
+
+.total-result div{
+  margin-bottom:8px;
+}
+
+.total-result div:last-child{
+  margin-bottom:0;
 }
 
 @media(max-width:600px){
+
   h1{
     font-size:22px;
   }
@@ -153,98 +220,168 @@ h2{
   .result-inputs{
     grid-template-columns:1fr;
   }
-}
 
-.bet-input-row{
-  display:flex;
-  gap:8px;
-}
+  .summary-row{
+    flex-direction:column;
+  }
 
-.bet-confirm-button{
-  min-width:70px;
-  border:none;
-  border-radius:8px;
-  background:#2563eb;
-  color:white;
-  font-weight:bold;
-  cursor:pointer;
-  padding:10px;
-}
-
-.bet-confirm-button:hover{
-  background:#1d4ed8;
 }
 
 </style>
+<!-- CSSここまで -->
 </head>
 
 <body>
 
+<!-- =========================
+  HTMLここから
+  画面に表示される要素
+========================= -->
+
 <div class="container">
 
   <div class="card">
+
     <h1>🏇 トランプ競馬</h1>
 
     <div class="tabs">
-      <button class="tab active" onclick="changeMode('trifecta')">3連単</button>
-      <button class="tab" onclick="changeMode('trio')">3連複</button>
-      <button class="tab" onclick="changeMode('win')">単勝</button>
+
+      <button class="tab active" onclick="changeMode('trifecta',this)">
+        3連単
+      </button>
+
+      <button class="tab" onclick="changeMode('trio',this)">
+        3連複
+      </button>
+
+      <button class="tab" onclick="changeMode('win',this)">
+        単勝
+      </button>
+
     </div>
 
     <div class="bet-grid" id="betGrid"></div>
+
   </div>
 
   <div class="card">
+
     <h2>現在のベット</h2>
+
     <div id="betSummary"></div>
-    <h2 style="margin-top:16px;">合計ベット：<span id="totalBet">0</span> pt</h2>
+
+    <h2 style="margin-top:16px;">
+      1回あたりの合計ベット：<span id="totalBet">0</span> pt
+    </h2>
+
   </div>
 
   <div class="card">
-    <h2>結果入力</h2>
 
-    <div class="result-inputs">
-      <input id="result1" placeholder="1枚目 例：4">
-      <input id="result2" placeholder="2枚目 例：3">
-      <input id="result3" placeholder="3枚目 例：Joker">
-    </div>
+    <h2>結果入力：10回分</h2>
 
-    <button class="result-button" onclick="calculateResult()">
-      結果を計算する
+    <div id="resultsArea"></div>
+
+    <button class="result-button" onclick="calculateAllResults()">
+      10回分の合計結果を計算する
     </button>
 
     <div class="result-box" id="resultBox">
-      結果を入力してください。
+      各回の結果を入力すると、その回の収支が自動で表示されます。
     </div>
+
   </div>
 
 </div>
 
+<!-- HTMLここまで -->
+
+<!-- =========================
+  JavaScriptここから
+  ゲームの動き・計算処理
+========================= -->
 <script>
-const cards = ["Joker","4","4","4","4","3","3","3","2","2"];
+
+const cards = [
+  "Joker",
+  "4","4","4","4",
+  "3","3","3",
+  "2","2"
+];
 
 let currentMode = "trifecta";
 let bets = {};
 
 const trifectaOdds = {
-  "Joker-4-4":55,"Joker-4-3":55,"Joker-4-2":80,
-  "Joker-3-4":55,"Joker-3-3":110,"Joker-3-2":110,
-  "Joker-2-4":80,"Joker-2-3":110,"Joker-2-2":320,
 
-  "4-Joker-4":55,"4-Joker-3":55,"4-Joker-2":80,
-  "4-4-Joker":55,"4-4-4":25,"4-4-3":20,"4-4-2":25,
-  "4-3-Joker":55,"4-3-4":20,"4-3-3":25,"4-3-2":25,
-  "4-2-Joker":80,"4-2-4":25,"4-2-3":25,"4-2-2":80,
+  "Joker-4-4":55,
+  "Joker-4-3":55,
+  "Joker-4-2":80,
 
-  "3-Joker-4":55,"3-Joker-3":110,"3-Joker-2":110,
-  "3-4-Joker":55,"3-4-4":20,"3-4-3":25,"3-4-2":25,
-  "3-3-Joker":110,"3-3-4":25,"3-3-3":110,"3-3-2":55,
-  "3-2-Joker":110,"3-2-4":25,"3-2-3":55,"3-2-2":110,
+  "Joker-3-4":55,
+  "Joker-3-3":110,
+  "Joker-3-2":110,
 
-  "2-Joker-4":80,"2-Joker-3":110,"2-Joker-2":320,
-  "2-4-Joker":80,"2-4-4":25,"2-4-3":25,"2-4-2":80,
-  "2-3-Joker":110,"2-3-4":25,"2-3-3":55,"2-3-2":110,
-  "2-2-Joker":320,"2-2-4":80,"2-2-3":110
+  "Joker-2-4":80,
+  "Joker-2-3":110,
+  "Joker-2-2":320,
+
+  "4-Joker-4":55,
+  "4-Joker-3":55,
+  "4-Joker-2":80,
+
+  "4-4-Joker":55,
+  "4-4-4":25,
+  "4-4-3":20,
+  "4-4-2":25,
+
+  "4-3-Joker":55,
+  "4-3-4":20,
+  "4-3-3":25,
+  "4-3-2":25,
+
+  "4-2-Joker":80,
+  "4-2-4":25,
+  "4-2-3":25,
+  "4-2-2":80,
+
+  "3-Joker-4":55,
+  "3-Joker-3":110,
+  "3-Joker-2":110,
+
+  "3-4-Joker":55,
+  "3-4-4":20,
+  "3-4-3":25,
+  "3-4-2":25,
+
+  "3-3-Joker":110,
+  "3-3-4":25,
+  "3-3-3":110,
+  "3-3-2":55,
+
+  "3-2-Joker":110,
+  "3-2-4":25,
+  "3-2-3":55,
+  "3-2-2":110,
+
+  "2-Joker-4":80,
+  "2-Joker-3":110,
+  "2-Joker-2":320,
+
+  "2-4-Joker":80,
+  "2-4-4":25,
+  "2-4-3":25,
+  "2-4-2":80,
+
+  "2-3-Joker":110,
+  "2-3-4":25,
+  "2-3-3":55,
+  "2-3-2":110,
+
+  "2-2-Joker":320,
+  "2-2-4":80,
+  "2-2-3":110
+
 };
 
 const winOdds = {
@@ -255,173 +392,220 @@ const winOdds = {
 };
 
 function generateCombos(){
+
   const combos = [];
 
   for(let i=0;i<cards.length;i++){
     for(let j=0;j<cards.length;j++){
       for(let k=0;k<cards.length;k++){
+
         if(i !== j && i !== k && j !== k){
+
           const combo = [cards[i],cards[j],cards[k]];
           const key = combo.join("-");
+
           if(!combos.some(c => c.key === key)){
             combos.push({key,combo});
           }
+
         }
+
       }
     }
   }
 
   return combos;
+
 }
 
 function getTrioKey(combo){
-  return [...combo].sort((a,b)=>{
-    const order = {"Joker":1,"4":2,"3":3,"2":4};
-    return order[a] - order[b];
-  }).join("-");
+
+  return [...combo]
+    .sort((a,b)=>{
+
+      const order = {
+        "Joker":1,
+        "4":2,
+        "3":3,
+        "2":4
+      };
+
+      return order[a] - order[b];
+
+    })
+    .join("-");
+
 }
 
 function getTrioOdds(combo){
+
   const key = getTrioKey(combo);
-  const sample = {
+
+  const trioOdds = {
+
     "Joker-4-4":20,
     "Joker-4-3":20,
     "Joker-4-2":25,
+
     "Joker-3-3":35,
     "Joker-3-2":35,
     "Joker-2-2":105,
+
     "4-4-4":10,
     "4-4-3":5,
     "4-4-2":10,
+
     "4-3-3":10,
     "4-3-2":10,
     "4-2-2":25,
+
     "3-3-3":35,
     "3-3-2":20,
+
     "3-2-2":35,
     "2-2-2":105
+
   };
 
-  return sample[key] || 10;
+  return trioOdds[key] || 10;
+
 }
 
-function changeMode(mode){
+function changeMode(mode,button){
+
   currentMode = mode;
 
-  document.querySelectorAll(".tab").forEach(btn=>{
-    btn.classList.remove("active");
-  });
+  document.querySelectorAll(".tab")
+    .forEach(btn=>{
+      btn.classList.remove("active");
+    });
 
-  event.target.classList.add("active");
+  button.classList.add("active");
+
   renderBets();
+
 }
 
 function renderBets(){
+
   const grid = document.getElementById("betGrid");
   grid.innerHTML = "";
 
   let items = [];
 
   if(currentMode === "win"){
-    items = Object.keys(winOdds).map(card=>({
-      key:card,
-      label:card,
-      odds:winOdds[card],
-      type:"単勝"
-    }));
+
+    items = Object.keys(winOdds)
+      .map(card=>({
+        key:card,
+        label:card,
+        odds:winOdds[card],
+        type:"単勝"
+      }));
+
   }else{
+
     const combos = generateCombos();
 
     if(currentMode === "trifecta"){
-      items = combos.map(c=>({
-        key:c.key,
-        label:c.combo.join(" - "),
-        odds:trifectaOdds[c.key],
-        type:"3連単"
-      })).filter(item=>item.odds);
+
+      items = combos
+        .map(c=>({
+          key:c.key,
+          label:c.combo.join(" - "),
+          odds:trifectaOdds[c.key],
+          type:"3連単"
+        }))
+        .filter(item=>item.odds);
+
     }
 
     if(currentMode === "trio"){
+
       const unique = {};
 
       combos.forEach(c=>{
+
         const key = getTrioKey(c.combo);
+
         unique[key] = {
           key,
           label:key.replaceAll("-"," - "),
           odds:getTrioOdds(c.combo),
           type:"3連複"
         };
+
       });
 
       items = Object.values(unique);
+
     }
+
   }
 
   items.forEach(item=>{
 
-  const betKey = `${item.type}:${item.key}`;
+    const betKey = `${item.type}:${item.key}`;
 
-  const div = document.createElement("div");
-  div.className = "bet-item";
+    const div = document.createElement("div");
+    div.className = "bet-item";
 
-  div.innerHTML = `
+    div.innerHTML = `
 
-    <div class="bet-top">
-      <div>${item.label}</div>
-      <div>オッズ：${item.odds}</div>
-    </div>
+      <div class="bet-top">
+        <div>${item.label}</div>
+        <div>オッズ：${item.odds}</div>
+      </div>
 
-    <div class="bet-input-row">
+      <div class="bet-input-row">
 
-      <input
-        id="input-${betKey.replaceAll(':','-')}"
-        type="number"
-        inputmode="numeric"
-        min="0"
-        placeholder="ベットpt"
-        value="${bets[betKey]?.amount || ""}"
-      >
+        <input
+          id="input-${betKey.replaceAll(':','-')}"
+          type="number"
+          inputmode="numeric"
+          min="0"
+          placeholder="ベットpt"
+          value="${bets[betKey]?.amount || ""}"
+        >
 
-      <button
-        class="bet-confirm-button"
-        onclick="confirmBet('${betKey}','${item.type}','${item.key}','${item.label}',${item.odds})"
-      >
-        決定
-      </button>
+        <button
+          class="bet-confirm-button"
+          onclick="confirmBet(
+            '${betKey}',
+            '${item.type}',
+            '${item.key}',
+            '${item.label}',
+            ${item.odds}
+          )"
+        >
+          決定
+        </button>
 
-    </div>
+      </div>
 
-  `;
+    `;
 
-  grid.appendChild(div);
+    grid.appendChild(div);
 
-});
+  });
 
 }
+
 function confirmBet(betKey,type,key,label,odds){
 
-  const inputId =
-    `input-${betKey.replaceAll(':','-')}`;
+  const inputId = `input-${betKey.replaceAll(':','-')}`;
+  const value = document.getElementById(inputId).value;
 
-  const value =
-    document.getElementById(inputId).value;
-
-  setBet(
-    betKey,
-    type,
-    key,
-    label,
-    odds,
-    value
-  );
+  setBet(betKey,type,key,label,odds,value);
 
 }
 
 function setBet(betKey,type,key,label,odds,value){
+
   const amount = Number(value);
 
   if(amount > 0){
+
     bets[betKey] = {
       type,
       key,
@@ -429,20 +613,25 @@ function setBet(betKey,type,key,label,odds,value){
       odds,
       amount
     };
+
   }else{
     delete bets[betKey];
   }
 
   renderSummary();
+  autoCalculateAllFilledRounds();
+
 }
 
 function renderSummary(){
+
   const summary = document.getElementById("betSummary");
   const totalBet = document.getElementById("totalBet");
 
   summary.innerHTML = "";
 
   const betList = Object.values(bets);
+
   const total = betList.reduce((sum,b)=>sum + b.amount,0);
 
   totalBet.textContent = total;
@@ -453,16 +642,22 @@ function renderSummary(){
   }
 
   betList.forEach(bet=>{
+
     summary.innerHTML += `
+
       <div class="summary-row">
         <div>${bet.type}：${bet.label}</div>
         <div>${bet.amount}pt × ${bet.odds}</div>
       </div>
+
     `;
+
   });
+
 }
 
 function normalizeCard(value){
+
   const v = value.trim();
 
   if(v.toLowerCase() === "joker"){
@@ -470,27 +665,86 @@ function normalizeCard(value){
   }
 
   return v;
+
 }
 
-function calculateResult(){
-  const r1 = normalizeCard(document.getElementById("result1").value);
-  const r2 = normalizeCard(document.getElementById("result2").value);
-  const r3 = normalizeCard(document.getElementById("result3").value);
+function renderResultInputs(){
 
-  if(!r1 || !r2 || !r3){
-    alert("3枚すべて入力してください");
-    return;
+  const area = document.getElementById("resultsArea");
+  area.innerHTML = "";
+
+  for(let i = 1; i <= 10; i++){
+
+    area.innerHTML += `
+
+      <div class="result-round">
+
+        <div class="result-round-title">
+          ${i}回目の結果
+        </div>
+
+        <div class="result-inputs">
+
+          <input
+            id="result-${i}-1"
+            placeholder="1枚目 例：4"
+            oninput="autoCalculateRound(${i})"
+          >
+
+          <input
+            id="result-${i}-2"
+            placeholder="2枚目 例：3"
+            oninput="autoCalculateRound(${i})"
+          >
+
+          <input
+            id="result-${i}-3"
+            placeholder="3枚目 例：Joker"
+            oninput="autoCalculateRound(${i})"
+          >
+
+        </div>
+
+        <div class="round-result" id="round-result-${i}">
+          未入力
+        </div>
+
+      </div>
+
+    `;
+
   }
 
-  const result = [r1,r2,r3];
+}
+
+function getRoundResult(i){
+
+  const r1 = normalizeCard(document.getElementById(`result-${i}-1`).value);
+  const r2 = normalizeCard(document.getElementById(`result-${i}-2`).value);
+  const r3 = normalizeCard(document.getElementById(`result-${i}-3`).value);
+
+  return [r1,r2,r3];
+
+}
+
+function isRoundEmpty(result){
+  return !result[0] && !result[1] && !result[2];
+}
+
+function isRoundComplete(result){
+  return result[0] && result[1] && result[2];
+}
+
+function calculateOneResult(result){
+
   const resultKey = result.join("-");
   const resultTrioKey = getTrioKey(result);
-  const firstCard = r1;
+  const firstCard = result[0];
 
   let payout = 0;
-  let html = `<h2>結果：${result.join(" - ")}</h2>`;
 
   Object.values(bets).forEach(bet=>{
+
     let hit = false;
 
     if(bet.type === "単勝"){
@@ -506,45 +760,145 @@ function calculateResult(){
     }
 
     if(hit){
-      const winPoint = bet.amount * bet.odds;
-      payout += winPoint;
-
-      html += `
-        <div class="summary-row win">
-          <div>的中：${bet.type} ${bet.label}</div>
-          <div>+${winPoint}pt</div>
-        </div>
-      `;
-    }else{
-      html += `
-        <div class="summary-row lose">
-          <div>不的中：${bet.type} ${bet.label}</div>
-          <div>0pt</div>
-        </div>
-      `;
+      payout += bet.amount * bet.odds;
     }
+
   });
 
-  const totalBet = Object.values(bets).reduce((sum,b)=>sum + b.amount,0);
-  const profit = payout - totalBet;
+  const totalBet = Object.values(bets)
+    .reduce((sum,b)=>sum + b.amount,0);
+
+  return {
+    payout,
+    profit:payout - totalBet
+  };
+
+}
+
+function autoCalculateRound(i){
+
+  const resultBox = document.getElementById(`round-result-${i}`);
+  const result = getRoundResult(i);
+
+  const totalBet = Object.values(bets)
+    .reduce((sum,b)=>sum + b.amount,0);
+
+  if(isRoundEmpty(result)){
+    resultBox.textContent = "未入力";
+    resultBox.className = "round-result";
+    return;
+  }
+
+  if(!isRoundComplete(result)){
+    resultBox.textContent = "3枚入力すると自動計算されます";
+    resultBox.className = "round-result";
+    return;
+  }
+
+  if(totalBet === 0){
+    resultBox.textContent = "先にベットを入力してください";
+    resultBox.className = "round-result lose";
+    return;
+  }
+
+  const calc = calculateOneResult(result);
+
+  resultBox.className = `round-result ${calc.profit >= 0 ? "win" : "lose"}`;
+  resultBox.textContent = `${result.join(" - ")} ／ 払戻：${calc.payout}pt ／ 収支：${calc.profit >= 0 ? "+" : ""}${calc.profit}pt`;
+
+}
+
+function autoCalculateAllFilledRounds(){
+
+  for(let i = 1; i <= 10; i++){
+    autoCalculateRound(i);
+  }
+
+}
+
+function calculateAllResults(){
+
+  const totalBet = Object.values(bets)
+    .reduce((sum,b)=>sum + b.amount,0);
+
+  if(totalBet === 0){
+    alert("先にベットを入力してください");
+    return;
+  }
+
+  let totalPayout = 0;
+  let totalProfit = 0;
+  let playedCount = 0;
+
+  let html = "";
+
+  for(let i = 1; i <= 10; i++){
+
+    const result = getRoundResult(i);
+
+    if(isRoundEmpty(result)){
+      continue;
+    }
+
+    if(!isRoundComplete(result)){
+      alert(`${i}回目の結果が未入力です`);
+      return;
+    }
+
+    playedCount++;
+
+    const calc = calculateOneResult(result);
+
+    totalPayout += calc.payout;
+    totalProfit += calc.profit;
+
+    html += `
+
+      <div class="summary-row">
+
+        <div>
+          ${i}回目：${result.join(" - ")}
+        </div>
+
+        <div class="${calc.profit >= 0 ? "win" : "lose"}">
+          払戻：${calc.payout}pt ／ 収支：${calc.profit >= 0 ? "+" : ""}${calc.profit}pt
+        </div>
+
+      </div>
+
+    `;
+
+  }
+
+  if(playedCount === 0){
+    alert("結果を1回分以上入力してください");
+    return;
+  }
 
   html += `
-    <div class="profit">
-      払い戻し：${payout}pt
+
+    <div class="total-result">
+
+      <div>入力回数：${playedCount}回</div>
+      <div>1回あたりの合計ベット：${totalBet}pt</div>
+      <div>総ベット：${totalBet * playedCount}pt</div>
+      <div>合計払い戻し：${totalPayout}pt</div>
+      <div>合計収支：${totalProfit >= 0 ? "+" : ""}${totalProfit}pt</div>
+
     </div>
 
-    <div class="profit">
-      最終収支：${profit >= 0 ? "+" : ""}${profit}pt
-    </div>
   `;
 
   document.getElementById("resultBox").innerHTML = html;
-}
 
+}
 
 renderBets();
 renderSummary();
+renderResultInputs();
+
 </script>
+<!-- JavaScriptここまで -->
 
 </body>
 </html>
