@@ -154,6 +154,27 @@ h2{
     grid-template-columns:1fr;
   }
 }
+
+.bet-input-row{
+  display:flex;
+  gap:8px;
+}
+
+.bet-confirm-button{
+  min-width:70px;
+  border:none;
+  border-radius:8px;
+  background:#2563eb;
+  color:white;
+  font-weight:bold;
+  cursor:pointer;
+  padding:10px;
+}
+
+.bet-confirm-button:hover{
+  background:#1d4ed8;
+}
+
 </style>
 </head>
 
@@ -338,28 +359,63 @@ function renderBets(){
   }
 
   items.forEach(item=>{
-    const betKey = `${item.type}:${item.key}`;
 
-    const div = document.createElement("div");
-    div.className = "bet-item";
+  const betKey = `${item.type}:${item.key}`;
 
-    div.innerHTML = `
-      <div class="bet-top">
-        <div>${item.label}</div>
-        <div>オッズ：${item.odds}</div>
-      </div>
+  const div = document.createElement("div");
+  div.className = "bet-item";
+
+  div.innerHTML = `
+
+    <div class="bet-top">
+      <div>${item.label}</div>
+      <div>オッズ：${item.odds}</div>
+    </div>
+
+    <div class="bet-input-row">
 
       <input
+        id="input-${betKey.replaceAll(':','-')}"
         type="number"
+        inputmode="numeric"
         min="0"
         placeholder="ベットpt"
         value="${bets[betKey]?.amount || ""}"
-        oninput="setBet('${betKey}','${item.type}','${item.key}','${item.label}',${item.odds},this.value)"
       >
-    `;
 
-    grid.appendChild(div);
-  });
+      <button
+        class="bet-confirm-button"
+        onclick="confirmBet('${betKey}','${item.type}','${item.key}','${item.label}',${item.odds})"
+      >
+        決定
+      </button>
+
+    </div>
+
+  `;
+
+  grid.appendChild(div);
+
+});
+
+}
+function confirmBet(betKey,type,key,label,odds){
+
+  const inputId =
+    `input-${betKey.replaceAll(':','-')}`;
+
+  const value =
+    document.getElementById(inputId).value;
+
+  setBet(
+    betKey,
+    type,
+    key,
+    label,
+    odds,
+    value
+  );
+
 }
 
 function setBet(betKey,type,key,label,odds,value){
